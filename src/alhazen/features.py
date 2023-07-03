@@ -207,6 +207,69 @@ class IsDigitFeature(Feature):
     def is_valid(self, value):
         return isinstance(value, bool) or value == numpy.NAN
 
+class DiffFeature(Feature):
+    """
+    This class represents difference features of a grammar. These features
+    are defined for all productions that only derive numerical interpretable words.
+    The returned feature value corresponds to the (absolute) maximum possible Difference between
+    two derived words' floating-point number interpretations.
+
+    name : A unique identifier name for this feature. Should not contain Whitespaces.
+           e.g., 'diff(<integer1>,<integer2>)'
+    rule : The production rule also the key1.
+    key  : The key of the second part of the feature
+    """
+    #key 1  is the same as rule  but for outside reasons attribute rule is needed
+    def __init__(self, name: str, key1: str, key2: str) -> None:
+        super().__init__(name, key1, key2)
+
+        self.key1 = key1
+        self.key2 = key2
+
+    def __str__(self) -> str:
+        return f"diff({self.key1},{self.key2})"
+
+    def initialization_value(self):
+        return numpy.NAN
+
+    def find_key_in_tree(self, key: str, tree: DerivationTree):
+        node, children = tree
+        if str(node) == key:
+            return children[0]
+        for child in children:
+            result = self.find_key_in_tree(key, child)
+            if result:
+                return result
+
+    def evaluate(self, derivation_tree, feature_table):
+        print("evaluate:", self.key1, self.key2, derivation_tree, feature_table)
+        try:
+            value2 = float(str(self.find_key_in_tree(self.key2, derivation_tree)))
+            print(value2)
+            value1 = float(str(self.find_key_in_tree(self.key1, derivation_tree)))
+            print(value1)
+
+            value = value1 - value2
+
+            print("table , val:", feature_table, value)
+            logging.debug(f"{self.name} has feature-value: {value}")
+            logging.debug(
+                f"Feature table at feature {self.name} has value {feature_table[self.name]}"
+                f" of type {type(feature_table[self.name])}"
+            )
+            if abs(feature_table[self.name]) < abs(value) or isnan(feature_table[self.name]):
+                logging.debug(
+                    f"Replacing feature-value {feature_table[self.name]} with {value}"
+                )
+                return value
+
+        except ValueError as e:
+            print(e)
+            pass
+
+    def is_valid(self, value):
+        return isinstance(value, float) or value == numpy.NAN
+
 
 def extract_existence(grammar: Grammar) -> List[Feature]:
     """
@@ -305,6 +368,64 @@ def extract_is_digit(grammar: Grammar) -> List[Feature]:
 
 
 IS_DIGIT_FEATURE = FeatureWrapper(IsDigitFeature, extract_is_digit)
+
+
+def extract_diff(grammar: Grammar) -> List[Feature]:
+    """Extracts all numeric interpretation features from the grammar and returns all possible 2 element combinations as a list.
+     grammar : The input grammar.
+     """
+    features = []
+    numeric_values = []
+
+    # Mapping from non-terminals to derivable terminal chars
+    derivable_chars = defaultdict(set)
+
+    for rule in grammar:
+        for expansion in grammar[rule]:
+            # Remove non-terminal symbols and whitespace from expansion
+            terminals = re.sub(RE_NONTERMINAL, "", expansion)  # .replace(' ', '')
+
+            # Add each terminal char to the set of derivable chars
+            for c in terminals:
+                derivable_chars[rule].add(c)
+
+    # Repeatedly update the mapping until convergence
+    while True:
+        updated = False
+        for rule in grammar:
+            for r in reachable_nonterminals(grammar, rule):
+                before = len(derivable_chars[rule])
+                derivable_chars[rule].update(derivable_chars[r])
+                after = len(derivable_chars[rule])
+
+                # Set of derivable chars was updated
+                if after > before:
+                    updated = True
+
+        if not updated:
+            break
+
+    numeric_chars = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+    numeric_symbols = {".", "-"}
+
+    for key in derivable_chars:
+        # Check if derivable chars contain only numeric numbers
+        # and check if at least one number is in the set of derivable chars
+        if (
+                len((derivable_chars[key] - numeric_chars) - numeric_symbols) == 0
+                and len(derivable_chars[key].intersection(numeric_chars)) > 0
+        ):
+            numeric_values.append(key)
+
+    for key1 in numeric_values:
+        for key2 in numeric_values:
+            if key1 != key2:
+                features.append( DiffFeature(f"diff({key1},{key2})", key1, key2) )
+
+    return features
+
+
+DIFF_FEATURE = FeatureWrapper(DiffFeature, extract_diff)
 
 
 STANDARD_FEATURES = {EXISTENCE_FEATURE, NUMERIC_INTERPRETATION_FEATURE, LENGTH_FEATURE}

@@ -61,6 +61,7 @@ SPECIFICATION_GRAMMAR: Grammar = {
     "<feature>": [
         "exists(<string>)",
         "num(<string>)",
+        "diff(<string>,<string>)",
         # currently not used
         "char(<string>)",
         "len(<string>)",

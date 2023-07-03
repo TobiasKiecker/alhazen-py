@@ -129,6 +129,7 @@ class Alhazen:
             self._feature_names,
             self._data.drop(["oracle"], axis=1),
         )
+        logging.info(new_input_specifications)
 
         # generate new inputs according to the new input specifications
         # (Activity 4)

@@ -15,6 +15,7 @@ from alhazen.features import (
     ExistenceFeature,
     NumericInterpretation,
     LengthFeature,
+    DiffFeature,
     extract_numeric,
     extract_existence,
 )
@@ -223,7 +224,7 @@ class AdvancedGenerator(Generator):
                 return True
             return False
 
-        elif isinstance(requirement.feature, NumericInterpretation):
+        elif isinstance(requirement.feature, NumericInterpretation) or isinstance(requirement.feature, DiffFeature):
             expected = float(requirement.value)
             actual_value = input_features[requirement.feature.name]
 

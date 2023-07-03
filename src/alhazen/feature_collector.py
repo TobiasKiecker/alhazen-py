@@ -6,7 +6,7 @@ import pandas
 from fuzzingbook.GrammarFuzzer import is_nonterminal, Grammar
 from isla.language import DerivationTree
 
-from alhazen.features import Feature, FeatureWrapper, STANDARD_FEATURES
+from alhazen.features import Feature, FeatureWrapper, STANDARD_FEATURES, DIFF_FEATURE, DiffFeature
 from alhazen.input import Input
 
 
@@ -20,16 +20,16 @@ class Collector:
 
         self._grammar: Grammar = grammar
         self._features: Set[FeatureWrapper] = features
-        self.all_features: List[Feature] = self.get_all_features()
+        self.all_features = self.get_all_features()
 
-    def get_all_features(self) -> List[Feature]:
+    def get_all_features(self):
         assert len(self._features) != 0
 
         features = []
         for feature_class in self._features:
-            features.extend(feature_class.extract_from_grammar(
+            features = features + feature_class.extract_from_grammar(
                 grammar=self._grammar
-            ))
+            )
         assert len(features) != 0, "Could not extract any features."
         return features
 
@@ -50,18 +50,18 @@ class Collector:
             # initialization
             parsed_features[feature.name] = feature.initialization_value()
 
-        self.feature_collection(test_input.tree, parsed_features)
+        self.feature_collection(test_input.tree, parsed_features, test_input.tree) #TOBI added root tree
         return parsed_features
 
-    def feature_collection(self, tree: DerivationTree, feature_table):
+    def feature_collection(self, tree: DerivationTree, feature_table, root: DerivationTree):
         (node, children) = tree
-
         # Get features that correspond to this node
         # Get all one-dimensional features, e.g., Existence Feature of a single non-terminal,
         # the length or the numerical representation of a non-terminal.
         corresponding_features_1d = self.get_corresponding_feature(node, node)
 
         for corresponding_feature in corresponding_features_1d:
+            print("feat1:", corresponding_feature)
             assert feature_table[corresponding_feature.name] is not None, (
                 f"Feature {corresponding_feature.name} is " f"not in the feature table"
             )
@@ -72,30 +72,44 @@ class Collector:
         # Get features that correspond to this node
         # Get all two-dimensional features, e.g., the Existence of a Derivation Sequences A-> BD
         expansion = "".join([child[0] for child in children])
-        corresponding_features_2d = self.get_corresponding_feature(node, expansion)
+        corresponding_features_2d = self.get_corresponding_feature(node, expansion) + self.get_corresponding_diff_feature(node)
 
         for corresponding_feature in corresponding_features_2d:
+            print("feat:" , corresponding_feature)
             assert feature_table[corresponding_feature.name] is not None, (
                 f"Feature {corresponding_feature.name} is " f"not in the feature table"
             )
-            value = corresponding_feature.evaluate(tree, feature_table)
+            if not isinstance(corresponding_feature, DiffFeature):
+                value = corresponding_feature.evaluate(tree, feature_table)
+            else:
+                #if DIFF feature
+                print("iam here")
+                value = corresponding_feature.evaluate(root, feature_table)
+
             if value is not None:
                 feature_table[corresponding_feature.name] = value
 
         for child in children:
             if is_nonterminal(child[0]):
-                self.feature_collection(child, feature_table)
+                self.feature_collection(child, feature_table, root)
 
     @lru_cache
     def get_corresponding_feature(
-        self, feature_rule: str, feature_key: str
-    ) -> List[Feature]:
+        self, feature_rule: str, feature_key: str) -> List[Feature]:
         feature_list = []
         for feature in self.all_features:
             if feature.rule == feature_rule and feature.key == feature_key:
                 feature_list.append(feature)
 
         # assert len(feature_list) != 0
+        return feature_list
+
+    def get_corresponding_diff_feature(self, node: str) -> List[Feature]:
+        feature_list = []
+
+        for feature in self.all_features:
+            if isinstance(feature, DiffFeature) and feature.rule == node:
+                feature_list.append(feature)
         return feature_list
 
 

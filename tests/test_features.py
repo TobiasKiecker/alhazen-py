@@ -14,6 +14,7 @@ from alhazen.features import (
     NUMERIC_INTERPRETATION_FEATURE,
     LENGTH_FEATURE,
     IS_DIGIT_FEATURE,
+    DIFF_FEATURE,
 )
 
 STANDARD_FEATURES = {EXISTENCE_FEATURE, NUMERIC_INTERPRETATION_FEATURE, LENGTH_FEATURE}
@@ -44,6 +45,13 @@ grammar_with_maybe_minus: Grammar = {
 }
 assert is_valid_grammar(grammar_with_maybe_minus)
 
+grammar_diff: Grammar = {
+    "<start>": ["<integer>"],
+    "<integer>": ["<A>,<B>", "test"],
+    "<A>": srange(string.digits),
+    "<B>": srange(string.digits),
+}
+assert is_valid_grammar(grammar_diff)
 
 class FeatureExtraction(unittest.TestCase):
     def test_extract_features(self):
@@ -500,6 +508,51 @@ class FeatureExtraction(unittest.TestCase):
             result = collector.collect_features(inp)
             self.assertTrue(result == expected)
 
+
+
+    def test_extract_features_diff(self):
+        expected_feature_list = {
+            "diff(<A>,<B>)",
+            "diff(<B>,<A>)"
+        }
+
+        collector = Collector(grammar_diff, features={DIFF_FEATURE})
+        all_features = collector.get_all_features()
+        all_features_to_string = set([str(feature) for feature in all_features])
+
+        self.assertEqual(all_features_to_string, expected_feature_list)
+
+
+    def test_parse_features_diff(self):
+        input_list = ["4,2", "1,7", "test"]
+        expected_dicts = [
+            {
+                "diff(<A>,<B>)":2,
+                "diff(<B>,<A>)":-2
+            },
+            {
+                "diff(<A>,<B>)":-6,
+                "diff(<B>,<A>)":6
+            },
+            {
+                "diff(<A>,<B>)":numpy.NAN,
+                "diff(<B>,<A>)":numpy.NAN
+            }
+        ]
+
+        collector = Collector(grammar_diff, features={DIFF_FEATURE})
+        test_inputs = [
+            Input(
+                tree=DerivationTree.from_parse_tree(
+                    next(EarleyParser(grammar_diff).parse(inp))
+                )
+            )
+            for inp in input_list
+        ]
+        for inp, expected in zip(test_inputs, expected_dicts):
+            result = collector.collect_features(inp)
+            print(inp, expected, result)
+            self.assertTrue(result == expected)
 
 if __name__ == "__main__":
     unittest.main()

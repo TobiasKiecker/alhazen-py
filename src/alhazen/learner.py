@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 from typing import List
 from abc import ABC, abstractmethod
 
@@ -99,18 +100,22 @@ class DecisionTreeLearner(Learner):
         prediction_paths = extracting_prediction_paths(
             decision_tree, feature_names, data
         )
+        logging.info(prediction_paths)
         input_specifications = []
 
         for r in prediction_paths:
             parser = EarleyParser(SPECIFICATION_GRAMMAR)
             try:
                 for tree in parser.parse(r):
+                    logging.info(tree)
                     input_specifications.append(
                         create_new_input_specification(tree, all_features)
                     )
-            except SyntaxError:
+            except SyntaxError as e:
                 # Catch Parsing Syntax Errors: num(<term>) in [-900, 0] will fail; Might fix later
                 # For now, inputs following that form will be ignored
+                print(e)
+                # exit(-1)
                 pass
 
         return input_specifications
