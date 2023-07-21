@@ -61,7 +61,6 @@ class Collector:
         corresponding_features_1d = self.get_corresponding_feature(node, node)
 
         for corresponding_feature in corresponding_features_1d:
-            print("feat1:", corresponding_feature)
             assert feature_table[corresponding_feature.name] is not None, (
                 f"Feature {corresponding_feature.name} is " f"not in the feature table"
             )
@@ -75,7 +74,6 @@ class Collector:
         corresponding_features_2d = self.get_corresponding_feature(node, expansion) + self.get_corresponding_diff_feature(node)
 
         for corresponding_feature in corresponding_features_2d:
-            print("feat:" , corresponding_feature)
             assert feature_table[corresponding_feature.name] is not None, (
                 f"Feature {corresponding_feature.name} is " f"not in the feature table"
             )
@@ -83,7 +81,6 @@ class Collector:
                 value = corresponding_feature.evaluate(tree, feature_table)
             else:
                 #if DIFF feature
-                print("iam here")
                 value = corresponding_feature.evaluate(root, feature_table)
 
             if value is not None:
