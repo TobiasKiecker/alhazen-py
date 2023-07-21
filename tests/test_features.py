@@ -551,7 +551,6 @@ class FeatureExtraction(unittest.TestCase):
         ]
         for inp, expected in zip(test_inputs, expected_dicts):
             result = collector.collect_features(inp)
-            print(inp, expected, result)
             self.assertTrue(result == expected)
 
 if __name__ == "__main__":
