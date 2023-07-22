@@ -242,16 +242,11 @@ class DiffFeature(Feature):
                 return result
 
     def evaluate(self, derivation_tree, feature_table):
-        print("evaluate:", self.key1, self.key2, derivation_tree, feature_table)
         try:
             value2 = float(str(self.find_key_in_tree(self.key2, derivation_tree)))
-            print(value2)
             value1 = float(str(self.find_key_in_tree(self.key1, derivation_tree)))
-            print(value1)
-
             value = value1 - value2
 
-            print("table , val:", feature_table, value)
             logging.debug(f"{self.name} has feature-value: {value}")
             logging.debug(
                 f"Feature table at feature {self.name} has value {feature_table[self.name]}"
